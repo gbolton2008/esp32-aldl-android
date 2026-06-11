@@ -37,6 +37,15 @@ class BluetoothService(private val context: Context) {
     private val _rawHexLog = MutableStateFlow<List<String>>(emptyList())
     val rawHexLog: StateFlow<List<String>> = _rawHexLog
 
+    private val _framesReceived = MutableStateFlow(0)
+    val framesReceived: StateFlow<Int> = _framesReceived
+
+    private val _parseErrors = MutableStateFlow(0)
+    val parseErrors: StateFlow<Int> = _parseErrors
+
+    private val _currentFrameRate = MutableStateFlow(0)
+    val currentFrameRate: StateFlow<Int> = _currentFrameRate
+
     private val _errorMessage = MutableStateFlow("")
     val errorMessage: StateFlow<String> = _errorMessage
 
@@ -157,8 +166,8 @@ class BluetoothService(private val context: Context) {
                 payload[24] = bpwLowRaw.toByte()
 
                 val parsed = ALDLParser.parseFrame(payload)
-                if (parsed != null) {
-                    _latestFrame.value = parsed
+                if (parsed is com.example.esp32aldldashboard.parser.ALDLParseResult.Success) {
+                    _latestFrame.value = parsed.frame
                     val hexString = payload.joinToString(" ") { String.format("%02X", it) }
                     addRawHexLog("AA 55 $hexString (SIMULATED)")
                 }
@@ -233,7 +242,9 @@ class BluetoothService(private val context: Context) {
 
     private suspend fun readDataStream(inputStream: InputStream) {
         val readBuffer = ByteArray(128)
-        val syncBuffer = ArrayList<Byte>()
+        val syncBuffer = ArrayDeque<Byte>(128)
+        var lastFrameTime = System.currentTimeMillis()
+        var framesInCurrentSecond = 0
 
         while (currentCoroutineContext().isActive && isConnected) {
             try {
@@ -245,43 +256,72 @@ class BluetoothService(private val context: Context) {
                 }
 
                 for (j in 0 until bytesRead) {
-                    syncBuffer.add(readBuffer[j])
+                    syncBuffer.addLast(readBuffer[j])
                 }
 
                 // Check for frame matches in buffer
                 while (syncBuffer.size >= 27) {
                     var foundHeader = false
-                    for (idx in 0 until syncBuffer.size - 1) {
-                        if ((syncBuffer[idx].toInt() and 0xFF) == 0xAA && (syncBuffer[idx + 1].toInt() and 0xFF) == 0x55) {
-                            // Discard garbage preceding header
-                            if (idx > 0) {
-                                for (d in 0 until idx) {
-                                    syncBuffer.removeAt(0)
-                                }
-                            }
+                    val iterator = syncBuffer.iterator()
+                    var idx = 0
+                    var headerIdx = -1
+                    
+                    // Find header AA 55
+                    var prev = iterator.next().toInt() and 0xFF
+                    while (iterator.hasNext()) {
+                        val curr = iterator.next().toInt() and 0xFF
+                        if (prev == 0xAA && curr == 0x55) {
+                            headerIdx = idx
                             foundHeader = true
                             break
                         }
+                        prev = curr
+                        idx++
                     }
 
                     if (foundHeader) {
+                        // Discard garbage preceding header
+                        if (headerIdx > 0) {
+                            _parseErrors.value += 1
+                            for (i in 0 until headerIdx) {
+                                syncBuffer.removeFirst()
+                            }
+                        }
+
                         if (syncBuffer.size >= 27) {
+                            syncBuffer.removeFirst() // AA
+                            syncBuffer.removeFirst() // 55
+
                             val payload = ByteArray(25)
                             for (p in 0 until 25) {
-                                payload[p] = syncBuffer[p + 2]
-                            }
-
-                            // Consume the 27 bytes from buffer
-                            for (r in 0 until 27) {
-                                syncBuffer.removeAt(0)
+                                payload[p] = syncBuffer.removeFirst()
                             }
 
                             val parsed = ALDLParser.parseFrame(payload)
-                            if (parsed != null) {
-                                withContext(Dispatchers.Main) {
-                                    _latestFrame.value = parsed
-                                    val hexString = payload.joinToString(" ") { String.format("%02X", it) }
-                                    addRawHexLog("AA 55 $hexString")
+                            when (parsed) {
+                                is com.example.esp32aldldashboard.parser.ALDLParseResult.Success -> {
+                                    _framesReceived.value += 1
+                                    framesInCurrentSecond++
+                                    
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastFrameTime >= 1000) {
+                                        _currentFrameRate.value = framesInCurrentSecond
+                                        framesInCurrentSecond = 0
+                                        lastFrameTime = now
+                                    }
+
+                                    withContext(Dispatchers.Main) {
+                                        _latestFrame.value = parsed.frame
+                                        val hexString = payload.joinToString(" ") { String.format("%02X", it) }
+                                        addRawHexLog("AA 55 $hexString")
+                                    }
+                                }
+                                is com.example.esp32aldldashboard.parser.ALDLParseResult.InvalidData -> {
+                                    _parseErrors.value += 1
+                                    Log.w(TAG, "Invalid frame: ${parsed.reason}")
+                                }
+                                com.example.esp32aldldashboard.parser.ALDLParseResult.Incomplete -> {
+                                    // Handled by size check
                                 }
                             }
                         } else {
@@ -293,7 +333,9 @@ class BluetoothService(private val context: Context) {
                         val lastByte = syncBuffer.last()
                         syncBuffer.clear()
                         if ((lastByte.toInt() and 0xFF) == 0xAA) {
-                            syncBuffer.add(lastByte)
+                            syncBuffer.addLast(lastByte)
+                        } else {
+                            _parseErrors.value += 1
                         }
                         break
                     }

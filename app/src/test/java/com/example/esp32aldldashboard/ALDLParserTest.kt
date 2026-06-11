@@ -19,9 +19,9 @@ class ALDLParserTest {
             0x00.toByte(), 0x00.toByte(), 0xC9.toByte(), 0x02.toByte(), 0x62.toByte()
         )
 
-        val frame = ALDLParser.parseFrame(rawPayload)
-        assertNotNull(frame)
-        frame!!
+        val result = ALDLParser.parseFrame(rawPayload)
+        assertTrue(result is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
+        val frame = (result as com.example.esp32aldldashboard.parser.ALDLParseResult.Success).frame
 
         // Assert values based on 24-INT10.ads specifications:
         assertEquals(95, frame.iacPosition) // u[3] (Byte 4)

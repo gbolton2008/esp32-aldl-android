@@ -16,6 +16,10 @@ class MainScreenViewModel(context: Context) : ViewModel() {
     val rawHexLog: StateFlow<List<String>> = bluetoothService.rawHexLog
     val errorMessage: StateFlow<String> = bluetoothService.errorMessage
 
+    val framesReceived: StateFlow<Int> = bluetoothService.framesReceived
+    val parseErrors: StateFlow<Int> = bluetoothService.parseErrors
+    val currentFrameRate: StateFlow<Int> = bluetoothService.currentFrameRate
+
     private val _isCelsius = MutableStateFlow(false) // Default to Fahrenheit for standard 80s GM telemetry
     val isCelsius: StateFlow<Boolean> = _isCelsius
 
