@@ -1,0 +1,24 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.1735766"
+        android:scaleY="0.18666106"
+        android:translateX="21.42"
+        android:translateY="21.42">
+        <!-- Outer Border -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M188.2,41.2L88.1,0c0,0,100.2,346.8,99.7,348.7L288.4,0.4L188.2,41.2z M100.4,12.8l88.1,35.8l88.1-35.4l-88.5,301.9 C188.5,313.5,100.4,12.8,100.4,12.8z" />
+        <!-- Red Arrowhead Body -->
+        <path
+            android:fillColor="#D32F2F"
+            android:pathData="M188.5,56.8l-78.7-31.6c0,0,78.7,265.6,78.3,267l79.1-266.7L188.5,56.8z" />
+        <!-- Inner White Star -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M187.8,126.8l-6.7-23.8l-36.6-6.1l37.3-5.3 l5.4-21.9l6.6,22.3l38.6,5.1l-39.3,5.4L187.8,126.8z" />
+    </group>
+</vector>
