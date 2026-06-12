@@ -7,9 +7,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -89,7 +89,7 @@ fun MainScreen(
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted)
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Build, contentDescription = "Charts") },
+                    icon = { Icon(Icons.Default.ShowChart, contentDescription = "Charts") },
                     label = { Text("Charts") },
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
@@ -117,6 +117,7 @@ fun MainScreen(
             )
             1 -> ChartsScreen(
                 latestFrameFlow = viewModel.latestFrame,
+                chartPreferencesRepository = app.chartPreferencesRepository,
                 modifier = modifier.padding(paddingValues)
             )
             2 -> SettingsScreen(
