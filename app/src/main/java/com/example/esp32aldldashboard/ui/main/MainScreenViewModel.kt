@@ -6,7 +6,9 @@ import com.example.esp32aldldashboard.bluetooth.ConnectionState
 import com.example.esp32aldldashboard.parser.ALDLFrame
 import com.example.esp32aldldashboard.repository.SettingsRepository
 import com.example.esp32aldldashboard.repository.TelemetryRepository
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainScreenViewModel(
@@ -24,10 +26,11 @@ class MainScreenViewModel(
     val currentFrameRate: StateFlow<Int> = telemetryRepository.currentFrameRate
 
     val isCelsius: StateFlow<Boolean> = settingsRepository.isCelsiusFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun toggleTemperatureUnit() {
         viewModelScope.launch {
-            val currentValue = settingsRepository.isCelsiusFlow.value
+            val currentValue = isCelsius.value
             settingsRepository.setIsCelsius(!currentValue)
         }
     }
