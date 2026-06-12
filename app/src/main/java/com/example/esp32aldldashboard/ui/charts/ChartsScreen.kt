@@ -1,5 +1,7 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package com.example.esp32aldldashboard.ui.charts
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
