@@ -23,7 +23,8 @@ class TelemetryRepository(
     private val bluetoothService: BluetoothService,
     private val telemetryDao: TelemetryDao,
     private val csvLogger: CsvLogger,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val blmTableRepository: BLMTableRepository
 ) {
     private val repoScope = CoroutineScope(Dispatchers.IO + Job())
     private var currentSessionId: Long? = null
@@ -65,15 +66,25 @@ class TelemetryRepository(
     private fun observeTelemetry() {
         repoScope.launch {
             bluetoothService.latestFrame.collectLatest { frame ->
-                if (frame != null && isRecording) {
-                    csvLogger.logFrame(frame)
-                    currentSessionId?.let { sid ->
-                        val dataPoint = TelemetryDataPointEntity(
-                            sessionId = sid,
-                            timestamp = frame.timestamp,
-                            rawBytes = frame.rawBytes
-                        )
-                        telemetryDao.insertDataPoints(listOf(dataPoint))
+                if (frame != null) {
+                    // Update BLM table with every frame (not just when recording)
+                    blmTableRepository.updateCell(
+                        rpm = frame.engineSpeedRpm,
+                        mapKpa = frame.mapKpa,
+                        blm = frame.blm,
+                        intValue = frame.integrator
+                    )
+                    
+                    if (isRecording) {
+                        csvLogger.logFrame(frame)
+                        currentSessionId?.let { sid ->
+                            val dataPoint = TelemetryDataPointEntity(
+                                sessionId = sid,
+                                timestamp = frame.timestamp,
+                                rawBytes = frame.rawBytes
+                            )
+                            telemetryDao.insertDataPoints(listOf(dataPoint))
+                        }
                     }
                 }
             }

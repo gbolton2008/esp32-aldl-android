@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -18,6 +19,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.esp32aldldashboard.AldlApplication
+import com.example.esp32aldldashboard.ui.blm.BLMTableScreen
+import com.example.esp32aldldashboard.ui.blm.BLMTableViewModelFactory
 import com.example.esp32aldldashboard.ui.charts.ChartsScreen
 import com.example.esp32aldldashboard.ui.settings.SettingsScreen
 
@@ -96,10 +99,17 @@ fun MainScreen(
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted)
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                    label = { Text("Settings") },
+                    icon = { Icon(Icons.Default.TableChart, contentDescription = "BLM Table") },
+                    label = { Text("BLM") },
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
+                    colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted)
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                    label = { Text("Settings") },
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted)
                 )
             }
@@ -120,7 +130,16 @@ fun MainScreen(
                 chartPreferencesRepository = app.chartPreferencesRepository,
                 modifier = modifier.padding(paddingValues)
             )
-            2 -> SettingsScreen(
+            2 -> {
+                val blmViewModel: com.example.esp32aldldashboard.ui.blm.BLMTableViewModel = viewModel(
+                    factory = BLMTableViewModelFactory(app.blmTableRepository)
+                )
+                BLMTableScreen(
+                    viewModel = blmViewModel,
+                    modifier = modifier.padding(paddingValues)
+                )
+            }
+            3 -> SettingsScreen(
                 settingsRepository = app.settingsRepository,
                 modifier = modifier.padding(paddingValues)
             )
