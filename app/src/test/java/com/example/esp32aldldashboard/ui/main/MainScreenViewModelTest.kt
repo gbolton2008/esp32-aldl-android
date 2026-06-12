@@ -1,3 +1,4 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 package com.example.esp32aldldashboard.ui.main
 
 import com.example.esp32aldldashboard.bluetooth.ConnectionState
@@ -7,21 +8,28 @@ import io.mockk.*
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
 class MainScreenViewModelTest {
 
+    private val testDispatcher = UnconfinedTestDispatcher()
     private val telemetryRepository = mockk<TelemetryRepository>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val isCelsiusFlow = MutableStateFlow(false)
 
     @Before
     fun setUp() {
-        // Clear mocks
+        Dispatchers.setMain(testDispatcher)
         clearAllMocks()
         
         // Stub telemetry repository flows
@@ -41,6 +49,11 @@ class MainScreenViewModelTest {
         }
     }
 
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Test
     fun testInitialStates() = runTest {
         val viewModel = MainScreenViewModel(telemetryRepository, settingsRepository)
@@ -54,19 +67,18 @@ class MainScreenViewModelTest {
     fun testToggleTemperatureUnit() = runTest {
         val viewModel = MainScreenViewModel(telemetryRepository, settingsRepository)
         
-        // Wait for stateIn initialization
-        runCurrent()
+        // Start collecting to activate WhileSubscribed stateIn flow
+        backgroundScope.launch(testDispatcher) {
+            viewModel.isCelsius.collect {}
+        }
+        
         assertFalse(viewModel.isCelsius.value)
         
         viewModel.toggleTemperatureUnit()
-        runCurrent() // Wait for viewmodel scope coroutine to execute settingsRepository.setIsCelsius
-        runCurrent() // Wait for settingsRepository update flow to propagate back through stateIn
         
         assertTrue(viewModel.isCelsius.value)
         
         viewModel.toggleTemperatureUnit()
-        runCurrent()
-        runCurrent()
         
         assertFalse(viewModel.isCelsius.value)
     }

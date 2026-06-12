@@ -73,19 +73,12 @@ class ALDLParserTest {
 
     @Test
     fun testRpmBoundaryValues() {
-        // Max valid RPM: 8000 (320 * 25 = 8000)
+        // Max representable RPM: 6375 (255 * 25)
         val validPayload = createBasePayload().apply {
-            this[7] = 320.toByte() // 320 * 25 = 8000 RPM
+            this[7] = 255.toByte() // 255 * 25 = 6375 RPM
         }
         val validResult = ALDLParser.parseFrame(validPayload)
-        assertTrue("RPM at exactly 8000 should be valid", validResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
-
-        // Invalid RPM: 8001 (321 * 25 = 8025)
-        val invalidPayload = createBasePayload().apply {
-            this[7] = 321.toByte() // 321 * 25 = 8025 RPM, exceeds 8000 limit
-        }
-        val invalidResult = ALDLParser.parseFrame(invalidPayload)
-        assertTrue("RPM above 8000 should be rejected", invalidResult is com.example.esp32aldldashboard.parser.ALDLParseResult.InvalidData)
+        assertTrue("Max representable RPM should be valid", validResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
     }
 
     @Test
@@ -121,19 +114,12 @@ class ALDLParserTest {
 
     @Test
     fun testTpsVoltageBoundaryValues() {
-        // Max valid: 5.1V (260 * 0.019608 = 5.098V ~ 5.1V)
+        // Max representable TPS: 5.0V (255 * 0.019608)
         val validPayload = createBasePayload().apply {
-            this[8] = 260.toByte()
+            this[8] = 255.toByte()
         }
         val validResult = ALDLParser.parseFrame(validPayload)
-        assertTrue("TPS at 5.1V should be valid", validResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
-
-        // Too high: 5.2V (265 * 0.019608 = 5.196V ~ 5.2V, exceeds 5.1V)
-        val invalidPayload = createBasePayload().apply {
-            this[8] = 265.toByte()
-        }
-        val invalidResult = ALDLParser.parseFrame(invalidPayload)
-        assertTrue("TPS above 5.1V should be rejected", invalidResult is com.example.esp32aldldashboard.parser.ALDLParseResult.InvalidData)
+        assertTrue("Max representable TPS should be valid", validResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
     }
 
     @Test
@@ -143,15 +129,19 @@ class ALDLParserTest {
         val validResult = ALDLParser.parseFrame(validPayload)
         assertTrue("Valid coolant temp should be accepted", validResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
 
-        // Too low: raw value 0 -> -40C, but below -45C limit
-        // Actually raw 0 gives -40C which is within bounds
-        // Let's test a very high raw value that gives > 220C
-        // raw 350 * 0.75 - 40 = 262.5 - 40 = 222.5C (exceeds 220C)
-        val highTempPayload = createBasePayload().apply {
-            this[4] = 350.toByte()
+        // Max representable: 255 * 0.75 - 40 = 151.25C
+        val maxPayload = createBasePayload().apply {
+            this[4] = 255.toByte()
         }
-        val highResult = ALDLParser.parseFrame(highTempPayload)
-        assertTrue("Coolant temp above 220C should be rejected", highResult is com.example.esp32aldldashboard.parser.ALDLParseResult.InvalidData)
+        val maxResult = ALDLParser.parseFrame(maxPayload)
+        assertTrue("Max representable coolant temp should be accepted", maxResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
+
+        // Min representable: 0 * 0.75 - 40 = -40C
+        val minPayload = createBasePayload().apply {
+            this[4] = 0.toByte()
+        }
+        val minResult = ALDLParser.parseFrame(minPayload)
+        assertTrue("Min representable coolant temp should be accepted", minResult is com.example.esp32aldldashboard.parser.ALDLParseResult.Success)
     }
 
     @Test
