@@ -26,7 +26,14 @@ fun MainScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val viewModel: MainScreenViewModel = viewModel { MainScreenViewModel(context) }
+    val app = context.applicationContext as AldlApplication
+    
+    val viewModel: MainScreenViewModel = viewModel(
+        factory = MainScreenViewModelFactory(
+            telemetryRepository = app.telemetryRepository,
+            settingsRepository = app.settingsRepository
+        )
+    )
     
     val connState by viewModel.connectionState.collectAsStateWithLifecycle()
     val frame by viewModel.latestFrame.collectAsStateWithLifecycle()
@@ -70,7 +77,6 @@ fun MainScreen(
     }
 
     var selectedTab by remember { mutableStateOf(0) }
-    val app = context.applicationContext as AldlApplication
 
     Scaffold(
         bottomBar = {

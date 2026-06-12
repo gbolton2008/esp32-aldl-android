@@ -17,6 +17,7 @@ fun SettingsScreen(
 ) {
     val isCelsius by settingsRepository.isCelsiusFlow.collectAsStateWithLifecycle(initialValue = false)
     val autoLogging by settingsRepository.autoLoggingFlow.collectAsStateWithLifecycle(initialValue = false)
+    val recordRawData by settingsRepository.recordRawDataFlow.collectAsStateWithLifecycle(initialValue = false)
     val coolantThreshold by settingsRepository.coolantAlertThresholdFlow.collectAsStateWithLifecycle(initialValue = 100f)
 
     val coroutineScope = rememberCoroutineScope()
@@ -62,6 +63,25 @@ fun SettingsScreen(
                 checked = autoLogging,
                 onCheckedChange = { 
                     coroutineScope.launch { settingsRepository.setAutoLogging(it) } 
+                }
+            )
+        }
+        Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+        // Raw Data Recording Toggle (Debug)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(text = "Record Raw Datastream (Debug)", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Save binary .bin files for debugging.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(
+                checked = recordRawData,
+                onCheckedChange = { 
+                    coroutineScope.launch { settingsRepository.setRecordRawData(it) } 
                 }
             )
         }

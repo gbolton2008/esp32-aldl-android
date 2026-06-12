@@ -1,6 +1,9 @@
 package com.example.esp32aldldashboard.repository
 
+import android.content.Context
+import android.content.Intent
 import com.example.esp32aldldashboard.bluetooth.BluetoothService
+import com.example.esp32aldldashboard.bluetooth.BluetoothForegroundService
 import com.example.esp32aldldashboard.bluetooth.ConnectionState
 import com.example.esp32aldldashboard.parser.ALDLFrame
 import com.example.esp32aldldashboard.data.database.SessionEntity
@@ -16,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 
 class TelemetryRepository(
+    private val context: Context,
     private val bluetoothService: BluetoothService,
     private val telemetryDao: TelemetryDao,
     private val csvLogger: CsvLogger,
@@ -99,14 +103,31 @@ class TelemetryRepository(
     }
 
     fun connect() {
+        startForegroundService()
         bluetoothService.connect()
     }
 
     fun disconnect() {
+        stopForegroundService()
         bluetoothService.disconnect()
     }
 
     fun startSimulation() {
+        startForegroundService()
         bluetoothService.startSimulation()
+    }
+
+    private fun startForegroundService() {
+        val intent = Intent(context, BluetoothForegroundService::class.java).apply {
+            action = BluetoothForegroundService.ACTION_START
+        }
+        context.startForegroundService(intent)
+    }
+
+    private fun stopForegroundService() {
+        val intent = Intent(context, BluetoothForegroundService::class.java).apply {
+            action = BluetoothForegroundService.ACTION_STOP
+        }
+        context.startService(intent)
     }
 }

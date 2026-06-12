@@ -16,6 +16,7 @@ class SettingsRepository(private val context: Context) {
         val COOLANT_ALERT_THRESHOLD = floatPreferencesKey("coolant_alert_threshold")
         val BATTERY_LOW_THRESHOLD = floatPreferencesKey("battery_low_threshold")
         val AUTO_LOGGING = booleanPreferencesKey("auto_logging")
+        val RECORD_RAW_DATA = booleanPreferencesKey("record_raw_data")
     }
 
     val isCelsiusFlow: Flow<Boolean> = context.dataStore.data
@@ -36,6 +37,11 @@ class SettingsRepository(private val context: Context) {
     val autoLoggingFlow: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
             preferences[AUTO_LOGGING] ?: false
+        }
+
+    val recordRawDataFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[RECORD_RAW_DATA] ?: false
         }
 
     suspend fun setIsCelsius(isCelsius: Boolean) {
@@ -59,6 +65,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setAutoLogging(autoLog: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[AUTO_LOGGING] = autoLog
+        }
+    }
+
+    suspend fun setRecordRawData(recordRaw: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[RECORD_RAW_DATA] = recordRaw
         }
     }
 }
