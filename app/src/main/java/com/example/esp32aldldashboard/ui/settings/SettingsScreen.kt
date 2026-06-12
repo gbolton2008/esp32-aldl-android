@@ -1,12 +1,15 @@
 package com.example.esp32aldldashboard.ui.settings
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.esp32aldldashboard.repository.LoggedFile
 import com.example.esp32aldldashboard.repository.SettingsRepository
 import kotlinx.coroutines.launch
 
@@ -19,6 +22,9 @@ fun SettingsScreen(
     val autoLogging by settingsRepository.autoLoggingFlow.collectAsStateWithLifecycle(initialValue = false)
     val recordRawData by settingsRepository.recordRawDataFlow.collectAsStateWithLifecycle(initialValue = false)
     val coolantThreshold by settingsRepository.coolantAlertThresholdFlow.collectAsStateWithLifecycle(initialValue = 100f)
+
+    var showLogFilesDialog by remember { mutableStateOf(false) }
+    var logFiles by remember { mutableStateOf<List<LoggedFile>>(emptyList()) }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -87,6 +93,31 @@ fun SettingsScreen(
         }
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+        // View Logged Files
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "View Logged Files", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Browse CSV and binary logs", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        logFiles = settingsRepository.getLoggedFiles()
+                        showLogFilesDialog = true
+                    }
+                }
+            ) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Open")
+            }
+        }
+        Divider(modifier = Modifier.padding(vertical = 8.dp))
+
         // Coolant Alert Threshold
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Text(text = "Coolant Alert Threshold", style = MaterialTheme.typography.titleMedium)
@@ -100,5 +131,13 @@ fun SettingsScreen(
                 steps = 70
             )
         }
+    }
+
+    // Log Files Dialog
+    if (showLogFilesDialog) {
+        LogFilesDialog(
+            files = logFiles,
+            onDismiss = { showLogFilesDialog = false }
+        )
     }
 }
