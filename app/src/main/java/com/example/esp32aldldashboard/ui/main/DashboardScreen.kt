@@ -77,12 +77,6 @@ fun DashboardScreen(
 
         // Telemetry Panels
         if (frame != null) {
-            // Trouble Codes Card (Flashing if active)
-            if (frame.activeFaultCodes.isNotEmpty()) {
-                TroubleCodesCard(activeCodes = frame.activeFaultCodes)
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
             // Gauges row: RPM and TPS
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -220,7 +214,13 @@ fun DashboardScreen(
             // Status Badges Section
             StatusFlagsPanel(frame = frame)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Trouble Codes Card (at bottom - moved from top)
+            if (frame.activeFaultCodes.isNotEmpty()) {
+                TroubleCodesCard(activeCodes = frame.activeFaultCodes)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         } else {
             // Empty / Waiting display
             Box(
