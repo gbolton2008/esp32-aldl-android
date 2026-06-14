@@ -1,7 +1,7 @@
 # Privacy Policy for ESP32 ALDL Dashboard
 
 **Android Application**  
-**Version**: 1.0  
+**Version**: 0.1.0  
 **Last Updated**: June 14, 2026
 
 ---
