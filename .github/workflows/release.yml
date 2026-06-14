@@ -1,3 +1,8 @@
+# Required GitHub secrets:
+# SIGNING_KEYSTORE_BASE64 - base64-encoded Android release keystore
+# SIGNING_STORE_PASSWORD    - keystore password
+# SIGNING_KEY_ALIAS         - key alias
+# SIGNING_KEY_PASSWORD      - key password
 name: Build and Release APK
 
 on:
@@ -11,6 +16,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Validate tag format
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag ${{ github.ref_name }} is valid."
+          else
+            echo "Invalid tag format: ${{ github.ref_name }}. Expected vN.N.N"
+            exit 1
+          fi
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -26,15 +40,27 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Test and Build Debug APK
-        run: chmod +x ./gradlew && ./gradlew test && ./gradlew assembleDebug
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+      - name: Export signing environment variables
+        run: |
+          echo "SIGNING_STORE_FILE=$(pwd)/release.keystore" >> $GITHUB_ENV
+          echo "SIGNING_STORE_PASSWORD=${{ secrets.SIGNING_STORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "SIGNING_KEY_ALIAS=${{ secrets.SIGNING_KEY_ALIAS }}" >> $GITHUB_ENV
+          echo "SIGNING_KEY_PASSWORD=${{ secrets.SIGNING_KEY_PASSWORD }}" >> $GITHUB_ENV
+
+      - name: Test and Build Release APK
+        run: chmod +x ./gradlew && ./gradlew test assembleRelease
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/esp32-aldl-dashboard-${{ github.ref_name }}.apk
+        run: |
+          mkdir -p artifacts
+          cp app/build/outputs/apk/release/app-release.apk artifacts/esp32-aldl-dashboard-${{ github.ref_name }}.apk
 
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/esp32-aldl-dashboard-${{ github.ref_name }}.apk
+          files: artifacts/esp32-aldl-dashboard-${{ github.ref_name }}.apk
           generate_release_notes: true
-          
