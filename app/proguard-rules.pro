@@ -15,7 +15,7 @@
 # --- Kotlin Serialization ---
 -keep class kotlinx.serialization.** { *; }
 -keepclassmembers class ** {
-    static ** $$serializerInstance;
+    static ** \]$$serializerInstance;
 }
 
 # --- Compose / Navigation3 ---
