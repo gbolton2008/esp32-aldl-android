@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.esp32aldldashboard"
+    namespace = "com.gronod.esp32aldldashboard"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.esp32aldldashboard"
+        applicationId = "com.gronod.esp32aldldashboard"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
