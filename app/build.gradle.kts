@@ -12,8 +12,8 @@ android {
         applicationId = "com.gronod.esp32aldldashboard"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 1
+        versionName = "1.0"
     }
 
     signingConfigs {
@@ -31,7 +31,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
