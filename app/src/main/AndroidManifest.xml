@@ -13,8 +13,14 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
 
+    <!-- Foreground Service & Notifications -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 
     <application
+        android:name=".AldlApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -22,6 +28,10 @@
         android:supportsRtl="true"
         android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.ESP32ALDLDashboard">
+        <service
+            android:name=".bluetooth.BluetoothForegroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

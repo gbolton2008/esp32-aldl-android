@@ -1,42 +1,54 @@
 package com.example.esp32aldldashboard.ui.main
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
-import com.example.esp32aldldashboard.bluetooth.BluetoothService
+import androidx.lifecycle.viewModelScope
 import com.example.esp32aldldashboard.bluetooth.ConnectionState
 import com.example.esp32aldldashboard.parser.ALDLFrame
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.esp32aldldashboard.repository.SettingsRepository
+import com.example.esp32aldldashboard.repository.TelemetryRepository
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-class MainScreenViewModel(context: Context) : ViewModel() {
-    private val bluetoothService = BluetoothService(context.applicationContext)
+class MainScreenViewModel(
+    private val telemetryRepository: TelemetryRepository,
+    private val settingsRepository: SettingsRepository
+) : ViewModel() {
 
-    val connectionState: StateFlow<ConnectionState> = bluetoothService.connectionState
-    val latestFrame: StateFlow<ALDLFrame?> = bluetoothService.latestFrame
-    val rawHexLog: StateFlow<List<String>> = bluetoothService.rawHexLog
-    val errorMessage: StateFlow<String> = bluetoothService.errorMessage
+    val connectionState: StateFlow<ConnectionState> = telemetryRepository.connectionState
+    val latestFrame: StateFlow<ALDLFrame?> = telemetryRepository.latestFrame
+    val rawHexLog: StateFlow<List<String>> = telemetryRepository.rawHexLog
+    val errorMessage: StateFlow<String> = telemetryRepository.errorMessage
 
-    private val _isCelsius = MutableStateFlow(false) // Default to Fahrenheit for standard 80s GM telemetry
-    val isCelsius: StateFlow<Boolean> = _isCelsius
+    val framesReceived: StateFlow<Int> = telemetryRepository.framesReceived
+    val parseErrors: StateFlow<Int> = telemetryRepository.parseErrors
+    val currentFrameRate: StateFlow<Int> = telemetryRepository.currentFrameRate
+
+    val isCelsius: StateFlow<Boolean> = settingsRepository.isCelsiusFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun toggleTemperatureUnit() {
-        _isCelsius.value = !_isCelsius.value
+        viewModelScope.launch {
+            val currentValue = isCelsius.value
+            settingsRepository.setIsCelsius(!currentValue)
+        }
     }
 
     fun connect() {
-        bluetoothService.connect()
+        telemetryRepository.connect()
     }
 
     fun disconnect() {
-        bluetoothService.disconnect()
+        telemetryRepository.disconnect()
     }
 
     fun startSimulation() {
-        bluetoothService.startSimulation()
+        telemetryRepository.startSimulation()
     }
 
     override fun onCleared() {
         super.onCleared()
-        bluetoothService.disconnect()
+        telemetryRepository.disconnect()
     }
 }

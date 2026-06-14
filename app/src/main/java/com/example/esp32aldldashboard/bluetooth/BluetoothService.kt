@@ -9,6 +9,9 @@ import android.content.Context
 import android.util.Log
 import com.example.esp32aldldashboard.parser.ALDLFrame
 import com.example.esp32aldldashboard.parser.ALDLParser
+import com.example.esp32aldldashboard.logging.RawStreamLogger
+import com.example.esp32aldldashboard.repository.SettingsRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +26,11 @@ enum class ConnectionState {
     ERROR
 }
 
-class BluetoothService(private val context: Context) {
+class BluetoothService(
+    private val context: Context,
+    private val rawStreamLogger: RawStreamLogger,
+    private val settingsRepository: SettingsRepository
+) {
 
     private val TAG = "ALDLBluetoothService"
     private val SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
@@ -37,8 +44,72 @@ class BluetoothService(private val context: Context) {
     private val _rawHexLog = MutableStateFlow<List<String>>(emptyList())
     val rawHexLog: StateFlow<List<String>> = _rawHexLog
 
+    private val _framesReceived = MutableStateFlow(0)
+    val framesReceived: StateFlow<Int> = _framesReceived
+
+    private val _parseErrors = MutableStateFlow(0)
+    val parseErrors: StateFlow<Int> = _parseErrors
+
+    private val _currentFrameRate = MutableStateFlow(0)
+    val currentFrameRate: StateFlow<Int> = _currentFrameRate
+
     private val _errorMessage = MutableStateFlow("")
     val errorMessage: StateFlow<String> = _errorMessage
+
+    private data class HeaderResult(val found: Boolean, val index: Int = -1)
+
+    /**
+     * Finds a valid AA 55 header in the buffer using 27-byte lookahead validation.
+     * If another AA 55 is found within 27 bytes of a detected header, the first is treated
+     * as false (payload data) and search continues.
+     */
+    private fun findValidHeader(buffer: ArrayDeque<Byte>): HeaderResult {
+        if (buffer.size < 27) return HeaderResult(false)
+        
+        val bytes = buffer.toList()
+        var searchStart = 0
+        
+        while (searchStart < bytes.size - 1) {
+            // Look for AA 55 starting at searchStart
+            var headerIdx = -1
+            for (i in searchStart until bytes.size - 1) {
+                val prev = bytes[i].toInt() and 0xFF
+                val curr = bytes[i + 1].toInt() and 0xFF
+                if (prev == 0xAA && curr == 0x55) {
+                    headerIdx = i
+                    break
+                }
+            }
+            
+            if (headerIdx == -1) {
+                return HeaderResult(false) // No header found
+            }
+            
+            // Check if there's another AA 55 within 27 bytes (indicating false header)
+            val lookAheadEnd = minOf(headerIdx + 27, bytes.size - 1)
+            var foundFalseHeader = false
+            
+            for (i in headerIdx + 2 until lookAheadEnd) {
+                if (i + 1 >= bytes.size) break
+                val prev = bytes[i].toInt() and 0xFF
+                val curr = bytes[i + 1].toInt() and 0xFF
+                if (prev == 0xAA && curr == 0x55) {
+                    // Found another header within 27 bytes - first one is likely false
+                    foundFalseHeader = true
+                    searchStart = headerIdx + 1 // Continue searching from after first AA
+                    break
+                }
+            }
+            
+            if (!foundFalseHeader) {
+                // Valid header found
+                return HeaderResult(true, headerIdx)
+            }
+            // Otherwise continue loop to find next candidate
+        }
+        
+        return HeaderResult(false)
+    }
 
     private var connectionJob: Job? = null
     private var socket: BluetoothSocket? = null
@@ -68,6 +139,12 @@ class BluetoothService(private val context: Context) {
         _errorMessage.value = ""
 
         connectionJob = CoroutineScope(Dispatchers.Default).launch {
+            // Start raw recording if enabled
+            val shouldRecordRaw = settingsRepository.recordRawDataFlow.first()
+            if (shouldRecordRaw) {
+                rawStreamLogger.startRecording()
+            }
+
             var simStep = 0
             val basePayload = byteArrayOf(
                 0x20.toByte(), 0x00.toByte(), 0x2A.toByte(), 0x5F.toByte(), 0x59.toByte(),
@@ -157,14 +234,26 @@ class BluetoothService(private val context: Context) {
                 payload[24] = bpwLowRaw.toByte()
 
                 val parsed = ALDLParser.parseFrame(payload)
-                if (parsed != null) {
-                    _latestFrame.value = parsed
+                if (parsed is com.example.esp32aldldashboard.parser.ALDLParseResult.Success) {
+                    _latestFrame.value = parsed.frame
                     val hexString = payload.joinToString(" ") { String.format("%02X", it) }
                     addRawHexLog("AA 55 $hexString (SIMULATED)")
+                    
+                    // Log raw frame if recording is enabled
+                    if (rawStreamLogger.isRecording()) {
+                        val rawFrame = ByteArray(27)
+                        rawFrame[0] = 0xAA.toByte()
+                        rawFrame[1] = 0x55.toByte()
+                        payload.copyInto(rawFrame, 2, 0, 25)
+                        rawStreamLogger.logFrame(rawFrame)
+                    }
                 }
 
                 delay(1000)
             }
+            
+            // Stop raw recording when simulation ends
+            rawStreamLogger.stopRecording()
         }
     }
 
@@ -218,7 +307,16 @@ class BluetoothService(private val context: Context) {
                     _connectionState.value = ConnectionState.CONNECTED
                 }
 
+                // Start raw recording if enabled
+                val shouldRecordRaw = settingsRepository.recordRawDataFlow.first()
+                if (shouldRecordRaw) {
+                    rawStreamLogger.startRecording()
+                }
+
                 readDataStream(socket!!.inputStream)
+
+                // Stop raw recording when connection ends
+                rawStreamLogger.stopRecording()
 
             } catch (e: Exception) {
                 Log.e(TAG, "Connection failed: ${e.message}", e)
@@ -233,7 +331,9 @@ class BluetoothService(private val context: Context) {
 
     private suspend fun readDataStream(inputStream: InputStream) {
         val readBuffer = ByteArray(128)
-        val syncBuffer = ArrayList<Byte>()
+        val syncBuffer = ArrayDeque<Byte>(128)
+        var lastFrameTime = System.currentTimeMillis()
+        var framesInCurrentSecond = 0
 
         while (currentCoroutineContext().isActive && isConnected) {
             try {
@@ -245,55 +345,83 @@ class BluetoothService(private val context: Context) {
                 }
 
                 for (j in 0 until bytesRead) {
-                    syncBuffer.add(readBuffer[j])
+                    syncBuffer.addLast(readBuffer[j])
                 }
 
                 // Check for frame matches in buffer
                 while (syncBuffer.size >= 27) {
-                    var foundHeader = false
-                    for (idx in 0 until syncBuffer.size - 1) {
-                        if ((syncBuffer[idx].toInt() and 0xFF) == 0xAA && (syncBuffer[idx + 1].toInt() and 0xFF) == 0x55) {
-                            // Discard garbage preceding header
-                            if (idx > 0) {
-                                for (d in 0 until idx) {
-                                    syncBuffer.removeAt(0)
-                                }
+                    val headerResult = findValidHeader(syncBuffer)
+                    
+                    if (headerResult.found) {
+                        val headerIdx = headerResult.index
+                        
+                        // Discard garbage preceding header
+                        if (headerIdx > 0) {
+                            _parseErrors.value += 1
+                            for (i in 0 until headerIdx) {
+                                syncBuffer.removeFirst()
                             }
-                            foundHeader = true
-                            break
                         }
-                    }
 
-                    if (foundHeader) {
+                        // Validate we have enough data for full frame
                         if (syncBuffer.size >= 27) {
-                            val payload = ByteArray(25)
-                            for (p in 0 until 25) {
-                                payload[p] = syncBuffer[p + 2]
-                            }
+                            syncBuffer.removeFirst() // AA
+                            syncBuffer.removeFirst() // 55
 
-                            // Consume the 27 bytes from buffer
-                            for (r in 0 until 27) {
-                                syncBuffer.removeAt(0)
+                            val payload = ByteArray(25)
+                            val rawFrame = ByteArray(27) // Include header for raw logging
+                            rawFrame[0] = 0xAA.toByte()
+                            rawFrame[1] = 0x55.toByte()
+                            
+                            for (p in 0 until 25) {
+                                payload[p] = syncBuffer.removeFirst()
+                                rawFrame[p + 2] = payload[p]
                             }
 
                             val parsed = ALDLParser.parseFrame(payload)
-                            if (parsed != null) {
-                                withContext(Dispatchers.Main) {
-                                    _latestFrame.value = parsed
-                                    val hexString = payload.joinToString(" ") { String.format("%02X", it) }
-                                    addRawHexLog("AA 55 $hexString")
+                            when (parsed) {
+                                is com.example.esp32aldldashboard.parser.ALDLParseResult.Success -> {
+                                    _framesReceived.value += 1
+                                    framesInCurrentSecond++
+                                    
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastFrameTime >= 1000) {
+                                        _currentFrameRate.value = framesInCurrentSecond
+                                        framesInCurrentSecond = 0
+                                        lastFrameTime = now
+                                    }
+
+                                    withContext(Dispatchers.Main) {
+                                        _latestFrame.value = parsed.frame
+                                        val hexString = payload.joinToString(" ") { String.format("%02X", it) }
+                                        addRawHexLog("AA 55 $hexString")
+                                    }
                                 }
+                                is com.example.esp32aldldashboard.parser.ALDLParseResult.InvalidData -> {
+                                    _parseErrors.value += 1
+                                    Log.w(TAG, "Invalid frame: ${parsed.reason}")
+                                }
+                                com.example.esp32aldldashboard.parser.ALDLParseResult.Incomplete -> {
+                                    // Handled by size check
+                                }
+                            }
+                            
+                            // Log raw frame if recording is enabled
+                            if (rawStreamLogger.isRecording()) {
+                                rawStreamLogger.logFrame(rawFrame)
                             }
                         } else {
                             // Header found, but waiting for full 27-byte frame
                             break
                         }
                     } else {
-                        // Header sequence not found, purge all but last byte if it is part of a potential header
+                        // No valid header found, purge all but potential header start
                         val lastByte = syncBuffer.last()
                         syncBuffer.clear()
                         if ((lastByte.toInt() and 0xFF) == 0xAA) {
-                            syncBuffer.add(lastByte)
+                            syncBuffer.addLast(lastByte)
+                        } else {
+                            _parseErrors.value += 1
                         }
                         break
                     }

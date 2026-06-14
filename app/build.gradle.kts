@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.ksp)
 }
 
 android {
@@ -61,6 +62,8 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.compose.material3)
+  implementation(libs.androidx.compose.material.icons.core)
+  implementation(libs.androidx.compose.material.icons.extended)
   // Tooling
   debugImplementation(libs.androidx.compose.ui.tooling)
   // Instrumented tests
@@ -70,6 +73,7 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.mockk)
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
@@ -81,4 +85,12 @@ dependencies {
   implementation(libs.androidx.navigation3.ui)
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
+  // Room
+  implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.room.ktx)
+  ksp(libs.androidx.room.compiler)
+
+  // DataStore
+  implementation(libs.androidx.datastore.preferences)
 }
