@@ -39,7 +39,7 @@ A modern, high-performance Android application designed to interface with GM OBD
 *   **TunerPro ADS Translation:** Uses an advanced [ALDLParser](file:///home/gordon/esp32-aldl-android/app/src/test/java/com/example/esp32aldldashboard/ALDLParserTest.kt) mapping raw 25-byte payloads into physical metrics using exact scale conversions, offsets, and non-linear lookup interpolations (derived from the `24-INT10.ads` definition file).
 *   **Foreground Service Operations (New):**
     *   Runs a persistent `BluetoothForegroundService` to keep the Bluetooth socket open and stream telemetry continuously in the background, even when the phone screen is locked or the app is minimized.
-*   **Firebase Integration:** Incorporates Firebase Crashlytics to monitor application stability and track runtime exceptions.
+
 
 ---
 
