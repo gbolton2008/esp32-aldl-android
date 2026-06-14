@@ -1,0 +1,14 @@
+ESP32 ALDL Dashboard connects your Android phone to classic GM OBD1 vehicles (such as the 1986 Pontiac Fiero 1227170 ECM) via a custom ESP32 Bluetooth SPP bridge, decoding the 160-baud ALDL datastream in real time.
+
+Features:
+- Animated radial RPM gauge and live readouts for speed, coolant temp, MAP, TPS, O2 sensor, MAT, and battery voltage
+- Status flags for closed-loop mode, rich/lean mixture, TCC lockup, and A/C clutch
+- BLM and Integrator fuel-trim heatmap grid across 14 RPM and 17 MAP bands with dynamic colour coding
+- Multi-parameter line charts in single or 2x2 grid mode for 12 selectable metrics
+- Trouble code decoder with human-readable descriptions
+- Dual logging: Room database sessions and TunerPro RT-compatible CSV export to Downloads/ALDLLogs
+- Optional raw binary stream recording for advanced playback and diagnostics
+- In-app log browser for viewing, opening, or sharing CSV and BIN files
+- Persistent settings for temperature units, alert thresholds, and auto-logging preferences
+
+Requirements: Android 7.0 or higher; an ESP32 device programmed to bridge the ALDL serial pin to Classic Bluetooth SPP (named ESP32-ALDL).
