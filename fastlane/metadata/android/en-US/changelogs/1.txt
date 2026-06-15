@@ -1,0 +1,11 @@
+Initial release v0.1.0
+
+• Real-time dashboard with RPM gauge, sensors, flags & trouble codes
+• BLM/INT color heatmap (14 RPM × 17 MAP)
+• Multi-parameter charts (single/2x2 grid)
+• Room persistence + TunerPro CSV + raw .bin logging
+• Logged files browser + background service
+• Robust Bluetooth parsing (27-byte validation) + stats + simulation
+• Settings, ProGuard, CI workflows & fastlane metadata
+
+For classic GM OBD1 via ESP32-ALDL (Android 8.0+).
